@@ -1,0 +1,46 @@
+{
+  "name": "crypto-keeper-data",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@elastic/elasticsearch": "^7.12.0",
+    "coingecko-api": "^1.0.10",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "ioredis": "^4.24.4",
+    "nodemon": "^2.0.4",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6",
+    "typescript": "^3.9.6",
+    "webpack": "^5.23.0",
+    "webpack-cli": "^4.5.0",
+    "webpack-dev-middleware": "^4.1.0",
+    "webpack-dev-server": "^3.11.2",
+    "ws": "^7.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.11",
+    "@types/node": "^14.14.31",
+    "@types/ws": "^7.4.0",
+    "ts-node": "^9.1.1"
+  },
+  "proxy": "http://localhost:3000",
+  "scripts": {
+    "start": "DEV=true nodemon --config ./config/nodemon.json",
+    "heroku-run": "node ./dist/app.js",
+    "build": "rm -rf dist/* && tsc --build ./config/tsconfig.json",
+    "deploy": "yarn && yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drewjenkins/NodeStarter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/drewjenkins/NodeStarter/issues"
+  },
+  "homepage": "https://github.com/drewjenkins/NodeStarter#readme"
+}

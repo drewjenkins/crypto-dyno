@@ -1,0 +1,2 @@
+api: yarn --cwd crypto-keeper-api heroku-run
+data-sync: yarn --cwd crypto-keeper-data heroku-run

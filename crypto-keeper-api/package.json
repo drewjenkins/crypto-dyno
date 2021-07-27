@@ -1,0 +1,29 @@
+{
+  "name": "nodes-tarter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "ioredis": "^4.24.6",
+    "ts-node": "^9.1.1"
+  },
+  "devDependencies": {},
+  "proxy": "http://localhost:3000",
+  "scripts": {
+    "start": "nodemon --config ./config/nodemon.json",
+    "heroku-run": "node ./dist/app.js",
+    "build": "rm -rf dist/* && tsc --build ./config/tsconfig.json",
+    "deploy": "yarn && yarn build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drewjenkins/NodeStarter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/drewjenkins/NodeStarter/issues"
+  },
+  "homepage": "https://github.com/drewjenkins/NodeStarter#readme"
+}

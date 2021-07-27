@@ -1,0 +1,13 @@
+{
+  "watch": ["src"],
+  "ext": "ts,js",
+  "ignore": ["src/**/*.spec.ts"],
+  "exec": "ts-node --project=./config/tsconfig.json src/app.ts",
+  "env": {
+    "__DEV__": "true",
+    "PAGE_OVERRIDE": "0",
+    "POLL_LENGTH": "30000",
+    "CACHE_LENGTH": "30000",
+    "PORT": "3001"
+  }
+}
