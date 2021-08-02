@@ -7,17 +7,20 @@ const coingecko_api_1 = __importDefault(require("coingecko-api"));
 const request_promise_1 = __importDefault(require("request-promise"));
 const elasticsearch_1 = require("@elastic/elasticsearch");
 const worker_threads_1 = require("worker_threads");
+const ioredis_1 = __importDefault(require("ioredis"));
+require("dotenv").config();
+const redis = new ioredis_1.default(process.env.STACKHERO_REDIS_URL_TLS);
 const CoinGeckoClient = new coingecko_api_1.default();
 const client = new elasticsearch_1.Client({ node: process.env.BONSAI_URL });
 const perPage = 250;
-const maxPages = 20;
 let highPriority = 1;
 const lowPriorityStart = 1000 / perPage + 1;
 let lowPriority = lowPriorityStart;
 const init = async () => {
     const list = await CoinGeckoClient.coins.list();
-    const totalPages = Math.min(Math.ceil(list.data.length / perPage), maxPages);
-    const updatePage = async (page, perPage) => {
+    const totalPages = Math.ceil(list.data.length / perPage);
+    console.log(`Found ${list.data.length} total items. Total Pages: ${totalPages}`);
+    const getPrices = async (page, perPage) => {
         try {
             const prices = await request_promise_1.default(`https://crypto-keeper.io/_hcms/api/fetch-prices?page=${page}&perPage=${perPage}`, {
                 method: "get",
@@ -25,14 +28,51 @@ const init = async () => {
             const transformedPrices = await request_promise_1.default("https://crypto-keeper.io/_hcms/api/transform-prices", {
                 method: "post",
                 // @ts-ignore
-                body: JSON.stringify(JSON.parse(prices).data),
+                body: JSON.stringify({
+                    prices: JSON.parse(prices).data,
+                    page,
+                    perPage,
+                }),
                 headers: { "Content-Type": "application/json" },
             });
-            const body = JSON.parse(transformedPrices).data.flatMap((doc) => [
+            return transformedPrices;
+        }
+        catch (e) { }
+    };
+    const forceMerge = async () => {
+        console.log(`Force Merging - ${new Date().toLocaleTimeString()}`);
+        return client.indices.forcemerge({
+            index: "*",
+            expand_wildcards: "all",
+            max_num_segments: 1,
+        });
+    };
+    const updateRedis = async (page, perPage) => {
+        const prices = await getPrices(page, perPage);
+        if (!prices)
+            return;
+        const data = JSON.parse(prices).data;
+        const asSymbol = {};
+        const asRank = {};
+        data.forEach((doc) => {
+            const stringifiedDoc = JSON.stringify(doc);
+            asSymbol[doc.symbol] = stringifiedDoc;
+            asRank[doc.rank] = stringifiedDoc;
+        });
+        console.log(`Updating Redis page ${page} - ${new Date().toLocaleTimeString()}`);
+        await redis.hmset("crypto.symbol", asSymbol);
+        await redis.hmset("crypto.rank", asRank);
+    };
+    const updateElasticSearch = async (page, perPage) => {
+        try {
+            const prices = await getPrices(page, perPage);
+            if (!prices)
+                return;
+            const body = JSON.parse(prices).data.flatMap((doc) => [
                 { index: { _index: "crypto", _id: doc.symbol } },
                 doc,
             ]);
-            console.log(`Updating - ${new Date().toLocaleTimeString()}`);
+            console.log(`Updating ElasticSearch page ${page} - ${new Date().toLocaleTimeString()}`);
             await client.bulk({ body });
         }
         catch (e) {
@@ -40,23 +80,25 @@ const init = async () => {
         }
     };
     const highPriorityUpdate = async () => {
-        await updatePage(highPriority, perPage);
+        if (highPriority === 1) {
+            await forceMerge();
+        }
+        await updateRedis(highPriority, perPage);
+        await updateElasticSearch(highPriority, perPage);
         highPriority++;
         if (highPriority >= lowPriorityStart) {
             highPriority = 1;
         }
     };
     const lowPriorityUpdate = async () => {
-        await updatePage(lowPriority, perPage);
+        if (lowPriority === lowPriorityStart) {
+            await forceMerge();
+        }
+        await updateRedis(lowPriority, perPage);
+        await updateElasticSearch(lowPriority, perPage);
         lowPriority++;
         if (lowPriority >= totalPages + 1) {
             lowPriority = lowPriorityStart;
-            console.log(`Force Merging - ${new Date().toLocaleTimeString()}`);
-            await client.indices.forcemerge({
-                index: "*",
-                expand_wildcards: "all",
-                max_num_segments: 1,
-            });
         }
     };
     while (true) {
@@ -70,7 +112,7 @@ const init = async () => {
         }
     }
 };
-if (worker_threads_1.isMainThread) {
+if (worker_threads_1.isMainThread && !process.env.DEV) {
     const worker = new worker_threads_1.Worker(__filename);
 }
 else {
