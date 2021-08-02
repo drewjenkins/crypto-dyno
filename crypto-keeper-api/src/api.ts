@@ -156,7 +156,6 @@ export const fetchExchangeRates = async () => {
     }
 
     console.log("Updating Exchange Rates");
-    console.log(process.env.EXCHANGE_RATE_URL);
     const res = await axios.get(process.env.EXCHANGE_RATE_URL!);
 
     exchangeRateCache = {
